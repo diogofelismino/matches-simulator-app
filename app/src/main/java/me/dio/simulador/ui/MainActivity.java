@@ -1,5 +1,7 @@
 package me.dio.simulador.ui;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -11,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.List;
+import java.util.Random;
 
 import me.dio.simulador.R;
 import me.dio.simulador.data.MatchesApi;
@@ -28,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private MatchesApi matchesApi;
-    private RecyclerView.Adapter matchesAdapter;
+    private MatchesAdapter matchesAdapter;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -58,6 +61,38 @@ public class MainActivity extends AppCompatActivity {
         binding.rvMatches.setHasFixedSize(true);
         binding.rvMatches.setLayoutManager(new LinearLayoutManager(this));
 
+        findMatchesFromApi();
+    }
+
+    private void setMatchesRefresh() {
+        binding.srlMatches.setOnRefreshListener(this::findMatchesFromApi);
+    }
+
+    private void setFloatingActionButton() {
+
+        binding.fabSimulate.setOnClickListener(view -> {
+
+            view.animate().rotationBy(360).setDuration(500).setListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    Random random = new Random();
+                    for (int i = 0; i < matchesAdapter.getItemCount(); i++) {
+                        Match match = matchesAdapter.getMatches().get(i);
+                        match.getHomeTeam().setScore(random.nextInt(match.getHomeTeam().getStars() + 1));
+                        match.getAwayteam().setScore(random.nextInt(match.getAwayteam().getStars() + 1));
+
+                        matchesAdapter.notifyItemChanged(i);
+                    }
+
+                }
+            });
+
+        });
+
+    }
+
+    private void findMatchesFromApi() {
+        binding.srlMatches.setRefreshing(true);
         matchesApi.getMatches().enqueue(new Callback<List<Match>>() {
             @Override
             public void onResponse(Call<List<Match>> call, Response<List<Match>> response) {
@@ -69,21 +104,15 @@ public class MainActivity extends AppCompatActivity {
                 }else{
                     showErrorMessage();
                 }
+                binding.srlMatches.setRefreshing(false);
             }
 
             @Override
             public void onFailure(Call<List<Match>> call, Throwable t) {
                 showErrorMessage();
+                binding.srlMatches.setRefreshing(false);
             }
         });
-    }
-
-    private void setMatchesRefresh() {
-        // TODO recarregar a pagina com nova partidas
-    }
-
-    private void setFloatingActionButton() {
-        // TODO botao que vai simular as partidas
     }
 
     private void showErrorMessage() {
